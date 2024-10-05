@@ -147,9 +147,10 @@ def state_space_initalize(size):
 
 
 def policy_evaluation(all_states, rewards, values, policy):
-    EPSILON = 0.1
-    GAMMA = 0.9
+    
+    loop = 0
     while True:
+        loop += 1
         DELTA = 0
         for state in reversed(all_states):
             if all_states[state].is_end():
@@ -160,7 +161,7 @@ def policy_evaluation(all_states, rewards, values, policy):
                         rewards[next_state][1] + GAMMA * values[next_state][1]]
             values[state] = [new_value[0], new_value[1]]
             DELTA = max(DELTA, abs(temp[0] - values[state][0]), abs(temp[1] - values[state][1]))
-        print(DELTA, '-' * 100)
+        print(f'Evaluation loop {loop}, delta={DELTA}')
         if DELTA < EPSILON:
             break
     print("Evaluation Done")
@@ -183,10 +184,26 @@ if __name__ == '__main__':
         if not all_states[state].is_end():
             policy[state] = np.random.choice(all_states[state].get_next_states())
 
-    # Policy Evaluation
-    policy_evaluation(all_states, rewards, values, policy)
-    print(values)
+    EPSILON = 0.1
+    GAMMA = 0.9
+    # Policy Improvement
+    while True:
+        # Policy Evaluation
+        policy_evaluation(all_states, rewards, values, policy)
+        policy_stable = True
+        for state in all_states:
+            if not all_states[state].is_end():
+                old_action = policy[state]
+                next_states = all_states[state].get_next_states()
+                next_values = [abs(rewards[next_state][0] + GAMMA * values[next_state][0])
+                                for next_state in next_states]
+                new_action = next_states[np.argmax(next_values)]
+                if old_action != new_action:
+                    policy_stable = False
+                policy[state] = new_action
+        if policy_stable:
+            break
 
-    # all_states = get_all_states(INIT_SIZE)
-    # print(len(all_states))
-    # play()
+    print("Policy Improvement Done")
+    print(policy)
+                    
