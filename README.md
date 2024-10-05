@@ -1,3 +1,10 @@
 # TicTacToe, with Dynamic Programming
 
-Work in progress...
+## Finished: 
+- Policy Evaluation
+- Policy Improvement
+
+## TODO: 
+- Play against random
+- Play against itself
+- Play against human
