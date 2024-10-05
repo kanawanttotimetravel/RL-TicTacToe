@@ -145,6 +145,28 @@ def state_space_initalize(size):
     
     return all_states, rewards
 
+
+def policy_evaluation(all_states, rewards, values, policy):
+    EPSILON = 0.1
+    GAMMA = 0.9
+    while True:
+        DELTA = 0
+        for state in reversed(all_states):
+            if all_states[state].is_end():
+                continue
+            temp = [values[state][0], values[state][1]]
+            next_state = policy[state]
+            new_value = [rewards[next_state][0] + GAMMA * values[next_state][0], 
+                        rewards[next_state][1] + GAMMA * values[next_state][1]]
+            values[state] = [new_value[0], new_value[1]]
+            DELTA = max(DELTA, abs(temp[0] - values[state][0]), abs(temp[1] - values[state][1]))
+        print(DELTA, '-' * 100)
+        if DELTA < EPSILON:
+            break
+    print("Evaluation Done")
+    
+
+
 if __name__ == '__main__':
     INIT_SIZE = 3
     all_states, rewards  = state_space_initalize(INIT_SIZE)
@@ -156,23 +178,14 @@ if __name__ == '__main__':
 
     policy = dict.fromkeys(all_states.keys(), 0)
 
+    # Random Policy
+    for state in all_states:
+        if not all_states[state].is_end():
+            policy[state] = np.random.choice(all_states[state].get_next_states())
+
     # Policy Evaluation
-    EPSILON = 0.1
-    GAMMA = 0.9
-    while True:
-        DELTA = 0
-        for state in reversed(all_states):
-            temp = [values[state][0], values[state][1]]
-            new_value = [0, 0]
-            for next_state in all_states[state].get_next_states():
-                new_value = [rewards[next_state][0] + GAMMA * values[next_state][0], 
-                        rewards[next_state][1] + GAMMA * values[next_state][1]]
-            values[state] = [new_value[0], new_value[1]]
-            DELTA = max(DELTA, abs(temp[0] - values[state][0]), abs(temp[1] - values[state][1]))
-        print(DELTA, '-' * 100)
-        if DELTA < EPSILON:
-            break
-    print("Evaluation Done")
+    policy_evaluation(all_states, rewards, values, policy)
+    print(values)
 
     # all_states = get_all_states(INIT_SIZE)
     # print(len(all_states))
