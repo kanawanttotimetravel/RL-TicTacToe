@@ -1,5 +1,8 @@
 import numpy as np
 import pickle
+import copy
+
+from pathlib import Path
 
 class State:
     def __init__(self, size):
@@ -61,11 +64,25 @@ class State:
         self.end = False
         return self.end
     
-    def next_state(self, i, j, symbol):
+    def next_state(self, i, j):
         new_state = State(self.size)
         new_state.data = np.copy(self.data)
-        new_state.data[i, j] = symbol
+        new_state.data[i, j] = self.player
+        new_state.player = -self.player
         return new_state
+    
+    def get_next_states(self):
+        next_states = []
+        if self.is_end():
+            return next_states
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.data[i][j] == 0:
+                    new_state = self.next_state(i, j)
+                    new_hash = new_state.__hash__()
+                    next_states.append(new_hash)
+        return next_states
+
 
     def print_state(self):
         for i in range(self.size):
@@ -82,47 +99,80 @@ class State:
         print('\n')
      
     
-def get_all_states_impl(size, current_state, current_symbol, all_states):
+def get_all_states_impl(size, current_state, all_states):
     for i in range(size):
         for j in range(size):
             if current_state.data[i][j] == 0:
-                new_state = current_state.next_state(i, j, current_symbol)
+                new_state = current_state.next_state(i, j)
                 new_hash = new_state.__hash__()
                 if new_hash not in all_states:
                     is_end = new_state.is_end()
-                    all_states[new_hash] = (new_state, is_end)
+                    all_states[new_hash] = new_state
                     if not is_end:
-                        get_all_states_impl(size, new_state, -current_symbol, all_states)
+                        get_all_states_impl(size, new_state, all_states)
 
 def get_all_states(size):
-    current_symbol = 1
     current_state = State(size)
     all_states = dict()
-    all_states[current_state.__hash__()] = (current_state, current_state.is_end())
-    get_all_states_impl(size,current_state, current_symbol, all_states)
+    all_states[current_state.__hash__()] = current_state
+    get_all_states_impl(size, current_state, all_states)
     return all_states
 
 def state_space_initalize(size):
+    save_path = Path(f"states_{size}.pkl")
+    if save_path.is_file():
+        with open(save_path, "rb") as f:
+            pickled = pickle.load(f)
+            all_states, rewards = pickled[0], pickled[1]
+            return all_states, rewards
+
     all_states = get_all_states(size)
-    all_state_rewards = dict()
-    all_state_values = dict()
+    rewards = dict()
+
     for state in all_states:
-        if all_states[state][1]:
-            if all_states[state][0].winner == 1:
-                all_state_rewards[state] = (1, -1)
-            elif all_states[state][0].winner == 0:
-                all_state_rewards[state] = (0.5, 0.5)
+        if all_states[state].is_end():
+            if all_states[state].winner == 1:
+                rewards[state] = (1, -1)
+            elif all_states[state].winner == 0:
+                rewards[state] = (0.5, 0.5)
             else:
-                all_state_rewards[state] = (-1, 1)
+                rewards[state] = (-1, 1)
         else:
-            all_state_rewards[state] = (0, 0)
-        all_state_values[state] = 0
-    return all_state_rewards, all_state_values
+            rewards[state] = (0, 0)
+
+    with open(save_path, "wb") as f:
+        pickle.dump((all_states, rewards), f)
+    
+    return all_states, rewards
 
 if __name__ == '__main__':
     INIT_SIZE = 3
-    all_state_rewards, all_state_values = state_space_initalize(INIT_SIZE)
-    
+    all_states, rewards  = state_space_initalize(INIT_SIZE)
+
+    values = dict.fromkeys(all_states.keys(), [0.1, 0.1])
+    for state in all_states:
+        if all_states[state].is_end():
+            values[state] = [0, 0]
+
+    policy = dict.fromkeys(all_states.keys(), 0)
+
+    # Policy Evaluation
+    EPSILON = 0.1
+    GAMMA = 0.9
+    while True:
+        DELTA = 0
+        for state in reversed(all_states):
+            temp = [values[state][0], values[state][1]]
+            new_value = [0, 0]
+            for next_state in all_states[state].get_next_states():
+                new_value = [rewards[next_state][0] + GAMMA * values[next_state][0], 
+                        rewards[next_state][1] + GAMMA * values[next_state][1]]
+            values[state] = [new_value[0], new_value[1]]
+            DELTA = max(DELTA, abs(temp[0] - values[state][0]), abs(temp[1] - values[state][1]))
+        print(DELTA, '-' * 100)
+        if DELTA < EPSILON:
+            break
+    print("Evaluation Done")
 
     # all_states = get_all_states(INIT_SIZE)
     # print(len(all_states))
