@@ -169,7 +169,7 @@ def policy_evaluation(all_states, rewards, values, policy):
 
 
 if __name__ == '__main__':
-    INIT_SIZE = 3
+    INIT_SIZE = 4
     all_states, rewards  = state_space_initalize(INIT_SIZE)
 
     values = dict.fromkeys(all_states.keys(), [0.1, 0.1])
@@ -185,17 +185,19 @@ if __name__ == '__main__':
             policy[state] = np.random.choice(all_states[state].get_next_states())
 
     EPSILON = 0.1
-    GAMMA = 0.9
+    GAMMA = 0.1
     # Policy Improvement
     while True:
         # Policy Evaluation
         policy_evaluation(all_states, rewards, values, policy)
         policy_stable = True
         for state in all_states:
+            player = all_states[state].player
+            index = 0 if player == 1 else 1
             if not all_states[state].is_end():
                 old_action = policy[state]
                 next_states = all_states[state].get_next_states()
-                next_values = [abs(rewards[next_state][0] + GAMMA * values[next_state][0])
+                next_values = [rewards[next_state][index] + GAMMA * values[next_state][index]
                                 for next_state in next_states]
                 new_action = next_states[np.argmax(next_values)]
                 if old_action != new_action:
@@ -207,3 +209,5 @@ if __name__ == '__main__':
     print("Policy Improvement Done")
     print(policy)
                     
+    with open(f'policy_{INIT_SIZE}.pkl', "wb") as f:
+        pickle.dump(policy, f)
